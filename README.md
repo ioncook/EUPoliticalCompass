@@ -1,4 +1,4 @@
-  To use, simply download the zip and extract it. Run the html and select the CSV in the package or supply another in the CHES-EU format. Alternatively, create a python server in the folder and it will automatically select the CSV when the page is loaded. 
+  To use, simply visit the [website](https://ioncook.github.io/EUPoliticalCompass/). For offline use, download the zip and extract it. Run the html and select the CSV in the package or supply another in the CHES-EU format. Alternatively, create a python server in the folder and it will automatically select the CSV when the page is loaded. 
   
   Listed "groups" do not directly correlate to real EU Parliament groups but fit loosely; the groups in the CSV coorespond mainly to party platform, which carries over groups. Names and descriptions can be easily edited in the HTML in the groupMapping object.
   

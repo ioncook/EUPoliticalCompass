@@ -274,8 +274,8 @@
             ctx.textBaseline = 'middle';
 
             if (labelMode === 'name') {
-              ctx.fillStyle = '#bbbbbb';
-              ctx.font = `bold ${Math.max(9, currentPoint.options.radius * 0.8)}px sans-serif`;
+              ctx.fillStyle = '#888888';
+              ctx.font = `300 ${Math.max(9, currentPoint.options.radius * 0.8)}px sans-serif`;
               ctx.fillText(party.party, currentPoint.x, currentPoint.y + 1);
             } else if (labelMode === 'flag') {
               const countryCode = countryMapping[party.country] || "";
@@ -288,6 +288,56 @@
             }
           }
         });
+      }
+    };
+
+    const cornerLabelsPlugin = {
+      id: 'cornerLabelsPlugin',
+      beforeDraw(chart) {
+        const { ctx, chartArea: { left, right, top, bottom }, width, height } = chart;
+        ctx.save();
+        ctx.fillStyle = '#888888';
+        ctx.textBaseline = 'middle';
+
+        // Corner labels
+        ctx.font = '300 12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('LEFT', left, bottom + 35);
+
+        ctx.textAlign = 'right';
+        ctx.fillText('RIGHT', right, bottom + 35);
+
+        ctx.save();
+        ctx.translate(left - 35, top);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'right';
+        ctx.fillText('CONSERVATIVE', 0, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(left - 35, bottom);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'left';
+        ctx.fillText('PROGRESSIVE', 0, 0);
+        ctx.restore();
+
+        // Large axis labels
+        ctx.font = '700 24px sans-serif';
+        ctx.fillStyle = '#666666';
+
+        // ECONOMY - bottom middle
+        ctx.textAlign = 'center';
+        ctx.fillText('ECONOMY', (left + right) / 2, bottom + 40);
+
+        // SOCIAL - left middle
+        ctx.save();
+        ctx.translate(left - 35, (top + bottom) / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText('SOCIAL', 0, 0);
+        ctx.restore();
+
+        ctx.restore();
       }
     };
 
@@ -414,14 +464,14 @@
       myChart = new Chart(document.getElementById("compassChart").getContext("2d"), {
         type: "bubble",
         data: { datasets },
-        plugins: [evolutionPlugin],
+        plugins: [evolutionPlugin, cornerLabelsPlugin],
         options: {
           interaction: {
             mode: 'nearest',
             intersect: false,
             axis: 'xy'
           },
-          animation: false, maintainAspectRatio: false, layout: { padding: 30 },
+          animation: false, maintainAspectRatio: false, layout: { padding: { top: 10, right: 15, bottom: 35, left: 40 } },
           onHover: (e, el) => {
             const visible = el.length > 0;
             e.native.target.style.cursor = visible ? "pointer" : "default";
@@ -442,8 +492,8 @@
             renderGroupLegend();
           },
           scales: {
-            x: { min: 0, max: 10, title: { display: true, text: "Economy: Left — Right", color: "#fff" }, grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") } },
-            y: { min: 0, max: 10, title: { display: true, text: "Social: Progressive — Conservative", color: "#fff" }, grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") } },
+            x: { min: 0, max: 10, title: { display: false }, grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") }, ticks: { color: '#666' } },
+            y: { min: 0, max: 10, title: { display: false }, grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") }, ticks: { color: '#666' } },
           },
           plugins: {
             legend: { display: false },

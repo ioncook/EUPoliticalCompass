@@ -3,12 +3,17 @@
 
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EU Political Compass</title>
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🇪🇺</text></svg>" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: #000000;
@@ -17,6 +22,12 @@
       padding: 20px;
       margin: 0;
       -webkit-tap-highlight-color: transparent;
+    }
+
+    canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
     }
 
     .container {
@@ -50,14 +61,16 @@
 
     .controls {
       display: flex;
-      gap: 20px;
+      gap: 15px;
       background: #1e1e1e;
       padding: 15px;
       border-radius: 10px;
       border: 1px solid #333;
       margin-bottom: 20px;
       align-items: flex-end;
-      flex-wrap: wrap;
+      flex-wrap: nowrap; /* Prevent wrapping which causes height jumps */
+      min-height: 92px;  /* Lock height */
+      overflow-x: visible;  /* Allow dropdowns to break out of the container */
     }
 
     .control-group {
@@ -66,7 +79,7 @@
       align-items: flex-start;
       gap: 5px;
       justify-content: flex-end;
-      /* Ensures alignment at the baseline */
+      position: relative; /* Added for dropdown positioning */
     }
 
     .control-group label {
@@ -84,7 +97,7 @@
       background-color: #252525;
       color: #ffffff;
       border: 1px solid #444;
-      padding: 0 15px; /* Removed vertical padding for precision */
+      padding: 0 10px;
       border-radius: 6px;
       font-size: 14px;
       transition: all 0.2s;
@@ -92,8 +105,21 @@
       box-sizing: border-box;
       height: 40px;
       margin: 0;
-      line-height: 40px; /* Aligns text in select */
+      line-height: 40px;
+      overflow: hidden;
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
     }
+
+    select::-webkit-scrollbar {
+      display: none;
+    }
+
+    #yearSelect { width: 80px; }
+    #countrySelect { width: 160px; }
+    #compareYearSelect { width: 100px; }
+    #labelModeSelect { width: 100px; }
+    #bestFitSelect { width: 80px; }
 
     button:hover {
       background-color: #333;
@@ -125,43 +151,129 @@
 
     .chart-area {
       position: relative;
-      height: 65vh;
-      min-height: 480px;
+      height: 580px; /* Fixed height for stability */
       background-color: #0a0a0a;
       border: 1px solid #222;
       border-radius: 8px;
       overflow: hidden;
     }
 
-    #groupLegend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 20px;
-      padding: 15px;
-      background: #1a1a1a;
-      border-radius: 10px;
-      border: 1px solid #333;
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      .container {
+        padding: 15px 15px 5px 15px;
+        border-radius: 10px;
+      }
+      .chart-area {
+        height: 60vh;
+        min-height: 400px;
+      }
+      .controls {
+        flex-wrap: wrap;
+        min-height: auto;
+        gap: 10px;
+      }
+      .control-group {
+        width: calc(50% - 10px);
+      }
+      .custom-select, select {
+        width: 100% !important;
+      }
+      #yearSelect, #countrySelect, #compareYearSelect, #labelModeSelect, #bestFitSelect {
+        width: 100%;
+      }
+      .dropdown-menu {
+        width: calc(100vw - 60px);
+        position: fixed;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%);
+        max-height: 80vh;
+      }
     }
 
-    .legend-item {
+    .custom-select {
+      background-color: #252525;
+      color: #ffffff;
+      border: 1px solid #444;
+      padding: 0 10px;
+      border-radius: 6px;
+      font-size: 14px;
+      height: 40px;
+      cursor: pointer;
+      width: 140px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .custom-select span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-right: 10px;
+    }
+
+    .custom-select::after {
+      content: '▼';
+      font-size: 10px;
+      color: #888;
+      flex-shrink: 0;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 6px;
+      z-index: 100;
+      width: max-content;
+      min-width: 100%;
+      max-width: 320px;
+      margin-top: 5px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      padding: 5px;
+      max-height: 400px;
+      overflow-y: auto;
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
+    }
+
+    .dropdown-menu::-webkit-scrollbar {
+      display: none; /* Hide scrollbar for Chrome, Safari and Opera */
+    }
+
+    .dropdown-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      padding: 5px 10px;
-      border-radius: 5px;
+      gap: 10px;
+      padding: 8px 12px;
       cursor: pointer;
+      font-size: 13px;
+      margin: 0;
+      border-radius: 5px;
       transition: background 0.2s;
       border: 1px solid transparent;
+      white-space: normal; /* Allow wrapping for long names */
+      line-height: 1.3;
     }
 
-    .legend-item:hover {
-      background: #252525;
+    .dropdown-item .dot {
+      flex-shrink: 0; /* Don't squash the color dot */
+    }
+
+    .dropdown-item:hover {
+      background: #333;
       border-color: #444;
     }
 
-    .legend-item.active {
+    .dropdown-item.active {
       background: #333;
       border-color: #007bff;
     }
@@ -223,11 +335,25 @@
         <select id="compareYearSelect" disabled></select>
       </div>
       <div class="control-group">
+        <label>Groups</label>
+        <div class="custom-select" id="groupDropdown" onclick="toggleGroupMenu()">
+          <span id="groupDropdownText">All Groups</span>
+        </div>
+        <div id="groupMenu" class="dropdown-menu" style="display: none;"></div>
+      </div>
+      <div class="control-group">
         <label>Labels</label>
         <select id="labelModeSelect">
           <option value="none">None</option>
           <option value="name">Name</option>
           <option value="flag">Flag</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Best Fit</label>
+        <select id="bestFitSelect">
+          <option value="off">Off</option>
+          <option value="on">On</option>
         </select>
       </div>
       <div class="control-group">
@@ -240,7 +366,6 @@
       <canvas id="compassChart"></canvas>
     </div>
 
-    <div id="groupLegend"></div>
     <div id="credits">Created with the help of <a href="https://gemini.google.com/app">Google Gemini</a> by <a
         href="https://github.com/ioncook">Ion Cook</a> using <a href="https://www.chesdata.eu/">CHES</a> data, 2026. <a
         href=https://github.com/ioncook/EUPoliticalCompass>View source</a></div>
@@ -329,12 +454,65 @@
       }
     };
 
+    const regressionPlugin = {
+      id: 'regressionPlugin',
+      afterDatasetsDraw(chart) {
+        const bestFit = document.getElementById('bestFitSelect').value;
+        if (bestFit === 'off') return;
+
+        const { ctx, scales: { x, y } } = chart;
+        const datasets = chart.data.datasets.filter(ds => !ds._isHistory && ds._partyData);
+        if (datasets.length < 2) return;
+
+        let sumW = 0, sumWX = 0, sumWY = 0, sumWXX = 0, sumWXY = 0;
+        datasets.forEach(ds => {
+          const d = ds._partyData;
+          if (d.lrecon === null || d.galtan === null) return;
+          const px = d.lrecon;
+          const py = d.galtan;
+          const w = d.vote || 1;
+          sumW += w;
+          sumWX += w * px;
+          sumWY += w * py;
+          sumWXX += w * px * px;
+          sumWXY += w * px * py;
+        });
+
+        const denominator = (sumW * sumWXX - sumWX * sumWX);
+        if (sumW <= 0 || Math.abs(denominator) < 1e-10) return;
+
+        const m = (sumW * sumWXY - sumWX * sumWY) / denominator;
+        const b = (sumWY - m * sumWX) / sumW;
+
+        const x1 = 0, y1 = m * x1 + b;
+        const x2 = 10, y2 = m * x2 + b;
+
+        ctx.save();
+        // Clip to the chart area (the box inside the axes)
+        ctx.beginPath();
+        ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width, chart.chartArea.height);
+        ctx.clip();
+
+        ctx.beginPath();
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
+        ctx.moveTo(x.getPixelForValue(x1), y.getPixelForValue(y1));
+        ctx.lineTo(x.getPixelForValue(x2), y.getPixelForValue(y2));
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
     function updateURL() {
       const params = new URLSearchParams();
       params.set('year', document.getElementById("yearSelect").value);
       params.set('country', document.getElementById("countrySelect").value);
       params.set('compare', document.getElementById("compareYearSelect").value);
       params.set('labels', document.getElementById("labelModeSelect").value);
+      params.set('fit', document.getElementById("bestFitSelect").value);
       if (selectedGroupIds.size > 0) {
         params.set('groups', Array.from(selectedGroupIds).join(','));
       }
@@ -427,7 +605,7 @@
       const codesInData = [...new Set(allData.map((d) => d.country))].filter(Boolean);
       let countryOptions = codesInData.map(code => ({ code: countryMapping[code], id: code })).filter(c => c.code !== undefined).sort((a, b) => a.code.localeCompare(b.code));
 
-      const ySel = document.getElementById("yearSelect"), cySel = document.getElementById("compareYearSelect"), cSel = document.getElementById("countrySelect"), lSel = document.getElementById("labelModeSelect");
+      const ySel = document.getElementById("yearSelect"), cySel = document.getElementById("compareYearSelect"), cSel = document.getElementById("countrySelect"), lSel = document.getElementById("labelModeSelect"), fSel = document.getElementById("bestFitSelect");
 
       ySel.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join("");
       cySel.innerHTML = `<option value="none">None</option>` + years.map((y) => `<option value="${y}">${y}</option>`).join("");
@@ -439,11 +617,12 @@
       if (params.has('compare')) cySel.value = params.get('compare');
       if (params.has('country')) cSel.value = params.get('country');
       if (params.has('labels')) lSel.value = params.get('labels');
+      if (params.has('fit')) fSel.value = params.get('fit');
       if (params.has('groups')) {
         selectedGroupIds = new Set(params.get('groups').split(',').map(Number));
       }
 
-      [ySel, cySel, cSel, lSel].forEach(s => { s.disabled = false; s.onchange = renderChart; });
+      [ySel, cySel, cSel, lSel, fSel].forEach(s => { s.disabled = false; s.onchange = renderChart; });
 
       document.getElementById("resetBtn").onclick = () => {
         window.location.href = window.location.pathname;
@@ -453,28 +632,61 @@
       enableWheelSelection("countrySelect");
       enableWheelSelection("compareYearSelect");
       enableWheelSelection("labelModeSelect");
+      enableWheelSelection("bestFitSelect");
 
-      renderGroupLegend();
+      renderGroupDropdown();
     }
 
-    function renderGroupLegend() {
-      const legendContainer = document.getElementById("groupLegend");
-      legendContainer.innerHTML = "";
+    function toggleGroupMenu() {
+      const menu = document.getElementById('groupMenu');
+      menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    document.addEventListener('mousedown', (e) => {
+      const dropdown = document.getElementById('groupDropdown');
+      const menu = document.getElementById('groupMenu');
+      if (dropdown && menu && !dropdown.contains(e.target) && !menu.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+
+    function renderGroupDropdown() {
+      const menu = document.getElementById("groupMenu");
+      menu.innerHTML = "";
+      
+      let selectedNames = [];
+
       Object.keys(groupMapping).forEach(id => {
         const group = groupMapping[id];
+        const isSelected = selectedGroupIds.has(parseInt(id));
+        if (isSelected) selectedNames.push(group.name.split('/')[0]); // Use short name for display
+
         const item = document.createElement("div");
-        item.className = `legend-item ${selectedGroupIds.has(parseInt(id)) ? 'active' : ''}`;
-        item.innerHTML = `<div class="dot" style="background:${group.color}"></div><span>${group.name}</span>`;
-        item.onclick = () => {
+        item.className = `dropdown-item ${isSelected ? 'active' : ''}`;
+        item.innerHTML = `
+          <div class="dot" style="background:${group.color};"></div>
+          <span>${group.name}</span>
+        `;
+        item.onclick = (e) => {
+          e.stopPropagation(); // Prevent document click handler from closing the menu
           const numId = parseInt(id);
           if (selectedGroupIds.has(numId)) selectedGroupIds.delete(numId);
           else selectedGroupIds.add(numId);
           selectedPartyId = null;
-          renderGroupLegend();
+          renderGroupDropdown();
           renderChart();
         };
-        legendContainer.appendChild(item);
+        menu.appendChild(item);
       });
+
+      const textSpan = document.getElementById("groupDropdownText");
+      if (selectedGroupIds.size === 0) {
+        textSpan.innerText = "All Groups";
+      } else if (selectedGroupIds.size === 1) {
+        textSpan.innerText = selectedNames[0];
+      } else {
+        textSpan.innerText = `${selectedGroupIds.size} Selected`;
+      }
     }
 
     function renderChart() {
@@ -526,63 +738,77 @@
         });
       });
 
-      if (myChart) myChart.destroy();
-      myChart = new Chart(document.getElementById("compassChart").getContext("2d"), {
-        type: "bubble",
-        data: { datasets },
-        plugins: [evolutionPlugin, cornerLabelsPlugin],
-        options: {
-          interaction: {
-            mode: 'nearest',
-            intersect: false,
-            axis: 'xy'
-          },
-          animation: false, maintainAspectRatio: false, layout: { padding: { top: 10, right: 15, bottom: 35, left: 40 } },
-          onHover: (e, el) => {
-            const visible = el.length > 0;
-            e.native.target.style.cursor = visible ? "pointer" : "default";
-          },
-          onClick: (event, elements, chart) => {
-            const isTouch = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
-            if (isTouch) return;
+      if (myChart) {
+        myChart.data.datasets = datasets;
+        myChart.update();
+      } else {
+        myChart = new Chart(document.getElementById("compassChart").getContext("2d"), {
+          type: "bubble",
+          data: { datasets },
+          plugins: [evolutionPlugin, cornerLabelsPlugin, regressionPlugin],
+          options: {
+            interaction: {
+              mode: 'nearest',
+              intersect: false,
+              axis: 'xy'
+            },
+            animation: false, maintainAspectRatio: false, layout: { padding: { top: 45, right: 45, bottom: 45, left: 45 } },
+            onHover: (e, el) => {
+              const visible = el.length > 0;
+              e.native.target.style.cursor = visible ? "pointer" : "default";
+            },
+            onClick: (event, elements, chart) => {
+              const isTouch = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+              if (isTouch) return;
 
-            if (elements.length === 0) {
-              selectedPartyId = null;
-            } else {
-              const ds = chart.data.datasets[elements[0].datasetIndex];
-              if (!ds._isHistory) {
-                selectedPartyId = (selectedPartyId === ds._partyData.party_id) ? null : ds._partyData.party_id;
+              if (elements.length === 0) {
+                selectedPartyId = null;
+              } else {
+                const ds = chart.data.datasets[elements[0].datasetIndex];
+                if (!ds._isHistory) {
+                  selectedPartyId = (selectedPartyId === ds._partyData.party_id) ? null : ds._partyData.party_id;
+                }
               }
-            }
-            renderChart();
-            renderGroupLegend();
-          },
-          scales: {
-            x: { min: 0, max: 10, title: { display: false }, grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") }, ticks: { color: '#666' } },
-            y: { min: 0, max: 10, title: { display: false }, grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") }, ticks: { color: '#666' } },
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              enabled: true,
-              callbacks: {
-                label: (ctx) => {
-                  const d = ctx.dataset._partyData;
-                  const countryCode = countryMapping[d.country] || "";
-                  const flag = countryCode ? getFlagEmoji(countryCode) : "";
-                  const groupName = groupMapping[d.family]?.name || "Unknown Group";
-                  return [
-                    `${flag} ${d.party} (${d.year})`,
-                    `Group: ${groupName}`,
-                    `Vote: ${d.vote}%`,
-                    `Econ: ${Math.round(d.lrecon * 10) / 10}, Social: ${Math.round(d.galtan * 10) / 10}`
-                  ];
+              renderChart();
+              renderGroupDropdown();
+            },
+            scales: {
+              x: { 
+                min: 0, max: 10, title: { display: false }, 
+                grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") }, 
+                ticks: { color: '#666' },
+                afterFit: (axis) => { axis.height = 30; } // Lock X-axis height
+              },
+              y: { 
+                min: 0, max: 10, title: { display: false }, 
+                grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") }, 
+                ticks: { color: '#666', padding: 8 },
+                afterFit: (axis) => { axis.width = 45; } // Lock Y-axis width
+              },
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                enabled: true,
+                callbacks: {
+                  label: (ctx) => {
+                    const d = ctx.dataset._partyData;
+                    const countryCode = countryMapping[d.country] || "";
+                    const flag = countryCode ? getFlagEmoji(countryCode) : "";
+                    const groupName = groupMapping[d.family]?.name || "Unknown Group";
+                    return [
+                      `${flag} ${d.party} (${d.year})`,
+                      `Group: ${groupName}`,
+                      `Vote: ${d.vote}%`,
+                      `Econ: ${Math.round(d.lrecon * 10) / 10}, Social: ${Math.round(d.galtan * 10) / 10}`
+                    ];
+                  }
                 }
               }
             }
           }
-        }
-      });
+        });
+      }
       updateURL();
     }
 

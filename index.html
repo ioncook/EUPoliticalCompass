@@ -453,6 +453,29 @@
       }
     };
 
+    const centralAxisPlugin = {
+      id: 'centralAxisPlugin',
+      beforeDatasetsDraw(chart) {
+        const { ctx, chartArea: { left, right, top, bottom }, scales: { x, y } } = chart;
+        ctx.save();
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 1;
+        // Vertical axis at X=5
+        const px5 = Math.floor(x.getPixelForValue(5)) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(px5, top);
+        ctx.lineTo(px5, bottom);
+        ctx.stroke();
+        // Horizontal axis at Y=5
+        const py5 = Math.floor(y.getPixelForValue(5)) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(left, py5);
+        ctx.lineTo(right, py5);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
     const regressionPlugin = {
       id: 'regressionPlugin',
       afterDatasetsDraw(chart) {
@@ -460,48 +483,60 @@
         if (bestFit === 'off') return;
 
         const { ctx, scales: { x, y } } = chart;
-        const datasets = chart.data.datasets.filter(ds => !ds._isHistory && ds._partyData);
-        if (datasets.length < 2) return;
+        
+        const drawRegression = (datasets, isDashed) => {
+          if (datasets.length < 2) return;
 
-        let sumW = 0, sumWX = 0, sumWY = 0, sumWXX = 0, sumWXY = 0;
-        datasets.forEach(ds => {
-          const d = ds._partyData;
-          if (d.lrecon === null || d.galtan === null) return;
-          const px = d.lrecon;
-          const py = d.galtan;
-          const w = d.vote || 1;
-          sumW += w;
-          sumWX += w * px;
-          sumWY += w * py;
-          sumWXX += w * px * px;
-          sumWXY += w * px * py;
-        });
+          let sumW = 0, sumWX = 0, sumWY = 0, sumWXX = 0, sumWXY = 0;
+          datasets.forEach(ds => {
+            const d = ds._partyData;
+            if (d.lrecon === null || d.galtan === null) return;
+            const px = d.lrecon;
+            const py = d.galtan;
+            const w = d.vote || 1;
+            sumW += w;
+            sumWX += w * px;
+            sumWY += w * py;
+            sumWXX += w * px * px;
+            sumWXY += w * px * py;
+          });
 
-        const denominator = (sumW * sumWXX - sumWX * sumWX);
-        if (sumW <= 0 || Math.abs(denominator) < 1e-10) return;
+          const denominator = (sumW * sumWXX - sumWX * sumWX);
+          if (sumW <= 0 || Math.abs(denominator) < 1e-10) return;
 
-        const m = (sumW * sumWXY - sumWX * sumWY) / denominator;
-        const b = (sumWY - m * sumWX) / sumW;
+          const m = (sumW * sumWXY - sumWX * sumWY) / denominator;
+          const b = (sumWY - m * sumWX) / sumW;
 
-        const x1 = 0, y1 = m * x1 + b;
-        const x2 = 10, y2 = m * x2 + b;
+          const x1 = 0, y1 = m * x1 + b;
+          const x2 = 10, y2 = m * x2 + b;
 
-        ctx.save();
-        // Clip to the chart area (the box inside the axes)
-        ctx.beginPath();
-        ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width, chart.chartArea.height);
-        ctx.clip();
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width, chart.chartArea.height);
+          ctx.clip();
 
-        ctx.beginPath();
-        ctx.setLineDash([6, 4]);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 4;
-        ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
-        ctx.moveTo(x.getPixelForValue(x1), y.getPixelForValue(y1));
-        ctx.lineTo(x.getPixelForValue(x2), y.getPixelForValue(y2));
-        ctx.stroke();
-        ctx.restore();
+          ctx.beginPath();
+          if (isDashed) {
+            ctx.setLineDash([6, 4]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+          } else {
+            ctx.setLineDash([]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+          }
+          ctx.lineWidth = 1;
+          ctx.shadowBlur = 0;
+          ctx.moveTo(x.getPixelForValue(x1), y.getPixelForValue(y1));
+          ctx.lineTo(x.getPixelForValue(x2), y.getPixelForValue(y2));
+          ctx.stroke();
+          ctx.restore();
+        };
+
+        const primaryDatasets = chart.data.datasets.filter(ds => !ds._isHistory && ds._partyData);
+        const historyDatasets = chart.data.datasets.filter(ds => ds._isHistory && ds._partyData);
+
+        // Draw history first (it will be behind the solid line if they overlap)
+        drawRegression(historyDatasets, true);
+        drawRegression(primaryDatasets, false);
       }
     };
 
@@ -760,7 +795,7 @@
         myChart = new Chart(document.getElementById("compassChart").getContext("2d"), {
           type: "bubble",
           data: { datasets },
-          plugins: [evolutionPlugin, cornerLabelsPlugin, regressionPlugin],
+          plugins: [evolutionPlugin, cornerLabelsPlugin, centralAxisPlugin, regressionPlugin],
           options: {
             interaction: {
               mode: 'nearest',
@@ -790,13 +825,13 @@
             scales: {
               x: {
                 min: 0, max: 10, title: { display: false },
-                grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") },
+                grid: { color: "#333" },
                 ticks: { color: '#666' },
                 afterFit: (axis) => { axis.height = 30; } // Lock X-axis height
               },
               y: {
                 min: 0, max: 10, title: { display: false },
-                grid: { color: (c) => (c.tick.value === 5 ? "#999" : "#333") },
+                grid: { color: "#333" },
                 ticks: { color: '#666', padding: 8 },
                 afterFit: (axis) => { axis.width = 45; } // Lock Y-axis width
               },

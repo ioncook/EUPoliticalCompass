@@ -397,7 +397,10 @@
       </div>
       <div class="control-group">
         <label>Country</label>
-        <select id="countrySelect" disabled></select>
+        <div class="custom-select" id="countryDropdown" onclick="toggleCountryMenu()">
+          <span id="countryDropdownText">All Countries</span>
+        </div>
+        <div id="countryMenu" class="dropdown-menu" style="display: none;"></div>
       </div>
       <div class="control-group">
         <label>Compare</label>
@@ -474,6 +477,7 @@
     let selectedPartyId = null;
     let selectedGroupIds = new Set();
     let selectedCompareYears = new Set();
+    let selectedCountries = new Set();
 
     const evolutionPlugin = {
       id: 'evolutionPlugin',
@@ -675,7 +679,6 @@
     function updateURL() {
       const params = new URLSearchParams();
       params.set('year', document.getElementById("yearSelect").value);
-      params.set('country', document.getElementById("countrySelect").value);
       params.set('fit', document.getElementById("bestFitSelect").value);
       params.set('labels', document.getElementById("labelModeSelect").value);
       params.set('theme', document.getElementById("themeSelect").value);
@@ -684,6 +687,9 @@
       }
       if (selectedGroupIds.size > 0) {
         params.set('groups', Array.from(selectedGroupIds).join(','));
+      }
+      if (selectedCountries.size > 0) {
+        params.set('countries', Array.from(selectedCountries).join(','));
       }
       const newUrl = window.location.pathname + '?' + params.toString();
       window.history.replaceState({ path: newUrl }, '', newUrl);
@@ -772,18 +778,14 @@
 
     function setupDropdowns() {
       const years = [...new Set(allData.map((d) => d.year))].sort((a, b) => b - a);
-      const codesInData = [...new Set(allData.map((d) => d.country))].filter(Boolean);
-      let countryOptions = codesInData.map(code => ({ code: countryMapping[code], id: code })).filter(c => c.code !== undefined).sort((a, b) => a.code.localeCompare(b.code));
 
-      const ySel = document.getElementById("yearSelect"), cSel = document.getElementById("countrySelect"), lSel = document.getElementById("labelModeSelect"), fSel = document.getElementById("bestFitSelect"), tSel = document.getElementById("themeSelect");
+      const ySel = document.getElementById("yearSelect"), lSel = document.getElementById("labelModeSelect"), fSel = document.getElementById("bestFitSelect"), tSel = document.getElementById("themeSelect");
 
       ySel.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join("");
-      cSel.innerHTML = `<option value="ALL">🌍 All Countries</option>` + countryOptions.map((c) => `<option value="${c.code}">${getFlagEmoji(c.code)} ${c.code}</option>`).join("");
 
-      // Apply URl params
+      // Apply URL params
       const params = new URLSearchParams(window.location.search);
       if (params.has('year')) ySel.value = params.get('year');
-      if (params.has('country')) cSel.value = params.get('country');
       if (params.has('labels')) lSel.value = params.get('labels');
       if (params.has('fit')) fSel.value = params.get('fit');
       if (params.has('theme')) {
@@ -797,13 +799,11 @@
       if (params.has('compare')) {
         selectedCompareYears = new Set(params.get('compare').split(',').map(Number).filter(n => !isNaN(n)));
       }
+      if (params.has('countries')) {
+        selectedCountries = new Set(params.get('countries').split(',').filter(Boolean));
+      }
 
       [lSel, fSel, tSel].forEach(s => { s.disabled = false; s.onchange = renderChart; });
-      cSel.disabled = false;
-      cSel.onchange = () => {
-        selectedPartyId = null;
-        renderChart();
-      };
       ySel.disabled = false;
       ySel.onchange = () => {
         renderCompareDropdown();
@@ -815,7 +815,6 @@
       };
 
       enableWheelSelection("yearSelect");
-      enableWheelSelection("countrySelect");
       enableWheelSelection("labelModeSelect");
       enableWheelSelection("bestFitSelect");
       enableWheelSelection("themeSelect");
@@ -827,8 +826,10 @@
 
       enableGroupWheelSelection();
       enableCompareWheelSelection();
+      enableCountryWheelSelection();
       renderGroupDropdown();
       renderCompareDropdown();
+      renderCountryDropdown();
     }
 
     function enableGroupWheelSelection() {
@@ -887,11 +888,100 @@
       if (cDropdown && cMenu && !cDropdown.contains(e.target) && !cMenu.contains(e.target)) {
         cMenu.style.display = 'none';
       }
+      const ctDropdown = document.getElementById('countryDropdown');
+      const ctMenu = document.getElementById('countryMenu');
+      if (ctDropdown && ctMenu && !ctDropdown.contains(e.target) && !ctMenu.contains(e.target)) {
+        ctMenu.style.display = 'none';
+      }
     });
+
+    function toggleCountryMenu() {
+      const menu = document.getElementById('countryMenu');
+      menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+    }
 
     function toggleCompareMenu() {
       const menu = document.getElementById('compareMenu');
       menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function renderCountryDropdown() {
+      const menu = document.getElementById("countryMenu");
+      menu.innerHTML = "";
+
+      const codesInData = [...new Set(allData.map((d) => d.country))].filter(Boolean);
+      const countryOptions = codesInData.map(code => ({ code: countryMapping[code], id: code })).filter(c => c.code !== undefined).sort((a, b) => a.code.localeCompare(b.code));
+
+      // All Countries (clear) option
+      const allItem = document.createElement("div");
+      allItem.className = "dropdown-item";
+      allItem.style.borderBottom = "1px solid var(--border-main)";
+      allItem.style.justifyContent = "center";
+      allItem.innerHTML = `<span style="color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase;">All Countries</span>`;
+      allItem.onclick = (e) => {
+        e.stopPropagation();
+        selectedCountries.clear();
+        selectedPartyId = null;
+        renderCountryDropdown();
+        renderChart();
+      };
+      menu.appendChild(allItem);
+
+      countryOptions.forEach(c => {
+        const isSelected = selectedCountries.has(c.code);
+        const item = document.createElement("div");
+        item.className = `dropdown-item ${isSelected ? 'active' : ''}`;
+        item.style.justifyContent = "center";
+        item.innerHTML = `<span style="font-size: 13px;">${getFlagEmoji(c.code)} ${c.code}</span>`;
+        item.onclick = (e) => {
+          e.stopPropagation();
+          if (isSelected) selectedCountries.delete(c.code);
+          else selectedCountries.add(c.code);
+          selectedPartyId = null;
+          renderCountryDropdown();
+          renderChart();
+        };
+        menu.appendChild(item);
+      });
+
+      const textSpan = document.getElementById("countryDropdownText");
+      if (selectedCountries.size === 0) textSpan.innerText = "All Countries";
+      else if (selectedCountries.size === 1) textSpan.innerText = `${getFlagEmoji([...selectedCountries][0])} ${[...selectedCountries][0]}`;
+      else textSpan.innerText = `${selectedCountries.size} Countries`;
+    }
+
+    function enableCountryWheelSelection() {
+      const el = document.getElementById("countryDropdown");
+      let scrollAccumulator = 0;
+      const THRESHOLD = 60;
+
+      el.addEventListener("wheel", function (e) {
+        if (selectedCountries.size > 1) return;
+        e.preventDefault();
+        scrollAccumulator += e.deltaY;
+        if (Math.abs(scrollAccumulator) >= THRESHOLD) {
+          const direction = scrollAccumulator > 0 ? 1 : -1;
+          const codesInData = [...new Set(allData.map((d) => d.country))].filter(Boolean);
+          const codes = codesInData.map(code => countryMapping[code]).filter(Boolean).sort((a, b) => a.localeCompare(b));
+
+          let currentIndex = -1;
+          if (selectedCountries.size === 1) {
+            currentIndex = codes.indexOf([...selectedCountries][0]);
+          }
+
+          let nextIndex = currentIndex + direction;
+          if (nextIndex < -1) nextIndex = codes.length - 1;
+          else if (nextIndex >= codes.length) nextIndex = -1;
+
+          selectedCountries.clear();
+          if (nextIndex !== -1) selectedCountries.add(codes[nextIndex]);
+
+          selectedPartyId = null;
+          renderCountryDropdown();
+          renderChart();
+          scrollAccumulator = 0;
+        }
+      }, { passive: false });
     }
 
     function renderCompareDropdown() {
@@ -1027,14 +1117,13 @@
 
     function renderChart() {
       const selectedYear = parseInt(document.getElementById("yearSelect").value);
-      const selectedCountry = document.getElementById("countrySelect").value;
       const sortedCompYears = Array.from(selectedCompareYears).sort((a, b) => a - b);
       const allTargetYears = [selectedYear, ...sortedCompYears];
 
       // Get all unique party IDs present in any of the targeted years for the selected country
       const relevantData = allData.filter(d =>
         allTargetYears.includes(d.year) &&
-        (selectedCountry === "ALL" || countryMapping[d.country] === selectedCountry)
+        (selectedCountries.size === 0 || selectedCountries.has(countryMapping[d.country]))
       );
       const allPartyIds = [...new Set(relevantData.map(d => d.party_id))];
 

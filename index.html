@@ -77,7 +77,7 @@
       height: 100%;
       background: var(--bg-1);
       color: var(--text-main);
-      padding: 15px 25px;
+      padding: 10px 15px;
       border-radius: 0;
       border: none;
       box-shadow: none;
@@ -125,7 +125,7 @@
       padding: 15px;
       border-radius: 10px;
       border: 1px solid var(--border-main);
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       align-items: flex-end;
       flex-wrap: nowrap;
       /* Prevent wrapping which causes height jumps */
@@ -243,12 +243,24 @@
       cursor: pointer;
       width: 140px;
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
+      padding-left: 10px;
+      padding-right: 25px;
+      /* space for arrow */
       align-items: center;
+      position: relative;
     }
 
     #compareDropdown {
-      width: 100px;
+      width: 120px;
+    }
+
+    #groupDropdown {
+      width: 180px;
+    }
+
+    #countryDropdown {
+      width: 135px;
     }
 
     .custom-select span {
@@ -263,6 +275,8 @@
       font-size: 10px;
       color: #888;
       flex-shrink: 0;
+      position: absolute;
+      right: 10px;
     }
 
     .dropdown-menu {
@@ -341,6 +355,33 @@
       padding-top: 9px;
     }
 
+    .dropdown-item.clear-all {
+      background: var(--bg-select);
+      border-bottom: 1px solid var(--border-main);
+      margin-bottom: 4px;
+      justify-content: center;
+      transition: all 0.15s ease;
+      opacity: 0.8;
+    }
+
+    .dropdown-item.clear-all:hover {
+      background: var(--bg-hover);
+      opacity: 1;
+      border-color: var(--border-active);
+    }
+
+    .dropdown-item.clear-all span {
+      color: var(--text-dim);
+      font-weight: 800;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .dropdown-item.clear-all:hover span {
+      color: var(--text-main);
+    }
+
     #compareMenu .dropdown-item {
       justify-content: center;
     }
@@ -349,6 +390,7 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
+      flex-shrink: 0;
     }
 
     h2 {
@@ -747,6 +789,7 @@
     };
 
     window.onload = async () => {
+
       try {
         const response = await fetch("1999-2024_CHES_dataset_meansV2.csv");
         const csvText = await response.text();
@@ -912,12 +955,10 @@
       const codesInData = [...new Set(allData.map((d) => d.country))].filter(Boolean);
       const countryOptions = codesInData.map(code => ({ code: countryMapping[code], id: code })).filter(c => c.code !== undefined).sort((a, b) => a.code.localeCompare(b.code));
 
-      // All Countries (clear) option
+      // Clear All option
       const allItem = document.createElement("div");
-      allItem.className = "dropdown-item";
-      allItem.style.borderBottom = "1px solid var(--border-main)";
-      allItem.style.justifyContent = "center";
-      allItem.innerHTML = `<span style="color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase;">All Countries</span>`;
+      allItem.className = "dropdown-item clear-all";
+      allItem.innerHTML = `<span>Clear All</span>`;
       allItem.onclick = (e) => {
         e.stopPropagation();
         selectedCountries.clear();
@@ -990,12 +1031,10 @@
       const currentYear = parseInt(document.getElementById("yearSelect").value);
       menu.innerHTML = "";
 
-      // None option
+      // Clear All option
       const noneItem = document.createElement("div");
-      noneItem.className = "dropdown-item";
-      noneItem.style.borderBottom = "1px solid var(--border-main)";
-      noneItem.style.justifyContent = "center";
-      noneItem.innerHTML = `<span style="color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase;">None</span>`;
+      noneItem.className = "dropdown-item clear-all";
+      noneItem.innerHTML = `<span>Clear All</span>`;
       noneItem.onclick = (e) => {
         e.stopPropagation();
         selectedCompareYears.clear();
@@ -1064,13 +1103,10 @@
       const menu = document.getElementById("groupMenu");
       menu.innerHTML = "";
 
-      // Add "None" option to clear filters
+      // Clear All option
       const noneItem = document.createElement("div");
-      noneItem.className = "dropdown-item";
-      noneItem.style.borderBottom = "1px solid var(--border-main)";
-      noneItem.style.marginBottom = "2px";
-      noneItem.style.justifyContent = "center";
-      noneItem.innerHTML = `<span style="color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase;">Clear All</span>`;
+      noneItem.className = "dropdown-item clear-all";
+      noneItem.innerHTML = `<span>Clear All</span>`;
       noneItem.onclick = (e) => {
         e.stopPropagation();
         selectedGroupIds.clear();
@@ -1081,11 +1117,15 @@
       menu.appendChild(noneItem);
 
       let selectedNames = [];
+      let selectedColor = null;
 
       Object.keys(groupMapping).forEach(id => {
         const group = groupMapping[id];
         const isSelected = selectedGroupIds.has(parseInt(id));
-        if (isSelected) selectedNames.push(group.name.split('/')[0]); // Use short name for display
+        if (isSelected) {
+          selectedNames.push(group.name); // Use full name for display
+          selectedColor = group.color;
+        }
 
         const item = document.createElement("div");
         item.className = `dropdown-item ${isSelected ? 'active' : ''}`;
@@ -1106,10 +1146,19 @@
       });
 
       const textSpan = document.getElementById("groupDropdownText");
+      const dropdown = document.getElementById("groupDropdown");
+      const existingDot = dropdown.querySelector(".dot");
+      if (existingDot) existingDot.remove();
+
       if (selectedGroupIds.size === 0) {
         textSpan.innerText = "All Groups";
       } else if (selectedGroupIds.size === 1) {
         textSpan.innerText = selectedNames[0];
+        const dot = document.createElement("div");
+        dot.className = "dot";
+        dot.style.background = selectedColor;
+        dot.style.marginRight = "8px";
+        dropdown.insertBefore(dot, textSpan);
       } else {
         textSpan.innerText = `${selectedGroupIds.size} Selected`;
       }

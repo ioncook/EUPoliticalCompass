@@ -438,7 +438,7 @@
         <select id="yearSelect" disabled></select>
       </div>
       <div class="control-group">
-        <label>Country</label>
+        <label>Countries</label>
         <div class="custom-select" id="countryDropdown" onclick="toggleCountryMenu()">
           <span id="countryDropdownText">All Countries</span>
         </div>
@@ -749,20 +749,20 @@
         // Corner labels
         ctx.font = '300 12px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('LEFT', left, bottom + 35);
+        ctx.fillText('LEFT', left, bottom + 40);
 
         ctx.textAlign = 'right';
-        ctx.fillText('RIGHT', right, bottom + 35);
+        ctx.fillText('RIGHT', right, bottom + 40);
 
         ctx.save();
-        ctx.translate(left - 35, top);
+        ctx.translate(left - 45, top);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = 'right';
         ctx.fillText('CONSERVATIVE', 0, 0);
         ctx.restore();
 
         ctx.save();
-        ctx.translate(left - 35, bottom);
+        ctx.translate(left - 45, bottom);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = 'left';
         ctx.fillText('PROGRESSIVE', 0, 0);
@@ -774,11 +774,11 @@
 
         // ECONOMY - bottom middle
         ctx.textAlign = 'center';
-        ctx.fillText('ECONOMY', (left + right) / 2, bottom + 40);
+        ctx.fillText('ECONOMY', (left + right) / 2, bottom + 41);
 
         // SOCIAL - left middle
         ctx.save();
-        ctx.translate(left - 35, (top + bottom) / 2);
+        ctx.translate(left - 46, (top + bottom) / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = 'center';
         ctx.fillText('SOCIAL', 0, 0);
@@ -1287,7 +1287,7 @@
               intersect: true,
               axis: 'xy'
             },
-            animation: false, maintainAspectRatio: false, clip: false, layout: { padding: { top: 45, right: 45, bottom: 45, left: 45 } },
+            animation: false, maintainAspectRatio: false, clip: false, layout: { autoPadding: false, padding: { top: 38, right: 38, bottom: 38, left: 38 } },
             onHover: (e, el) => {
               const visible = el.length > 0;
               e.native.target.style.cursor = visible ? "pointer" : "default";
